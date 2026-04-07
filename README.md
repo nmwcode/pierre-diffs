@@ -2,6 +2,9 @@
 
 Pierre-themed inline diff rendering for Pi.
 
+<img width="2588" height="1664" alt="image" src="https://github.com/user-attachments/assets/f30ef920-d8aa-477c-916b-afe2ca465440" />
+
+
 This package replaces Pi's default `edit` and `write` result rendering with a Pierre-styled diff block while keeping the rest of Pi's chat UI unchanged.
 
 ## What It Does
