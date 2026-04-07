@@ -1,0 +1,46 @@
+{
+  "name": "@tanvesh01/pierre-diffs",
+  "version": "0.2.0",
+  "description": "Pierre-themed inline diff renderer for Pi edit and write tool results.",
+  "author": "tanvesh01",
+  "license": "MIT",
+  "type": "module",
+  "keywords": [
+    "pi-package",
+    "pi-extension",
+    "coding-agent",
+    "diff",
+    "tui",
+    "pierre"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tanvesh01/pierre-diffs.git"
+  },
+  "homepage": "https://github.com/tanvesh01/pierre-diffs#readme",
+  "bugs": {
+    "url": "https://github.com/tanvesh01/pierre-diffs/issues"
+  },
+  "files": [
+    "extensions",
+    "README.md",
+    "LICENSE"
+  ],
+  "pi": {
+    "extensions": [
+      "./extensions/diff-viewer/index.ts"
+    ]
+  },
+  "dependencies": {
+    "@pierre/diffs": "^1.1.10",
+    "@pierre/theme": "^0.0.28",
+    "diff": "^8.0.4"
+  },
+  "peerDependencies": {
+    "@mariozechner/pi-coding-agent": "*",
+    "@mariozechner/pi-tui": "*"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.2"
+  }
+}
