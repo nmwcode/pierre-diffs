@@ -1,9 +1,10 @@
 import type { Theme } from "@mariozechner/pi-coding-agent";
 import type { Component } from "@mariozechner/pi-tui";
 import { truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@mariozechner/pi-tui";
+import { loadHighlightedDiff } from "../lib/pierreHighlight.js";
 import { buildDiffRows } from "../lib/pierreParser.js";
 import { getPierreAppearance, getPierrePalette, type PierreTerminalPalette } from "../lib/pierreTheme.js";
-import type { DiffRow, DiffSpan, DiffViewerPayload } from "../types.js";
+import type { DiffRow, DiffSpan, DiffViewerPayload, HighlightedDiffSet } from "../types.js";
 
 const ANSI_RESET = "\u001b[22m\u001b[39m\u001b[49m";
 
@@ -64,14 +65,31 @@ export class PierreStatusComponent implements Component {
 }
 
 export class InlineDiffComponent implements Component {
-  private readonly payload: DiffViewerPayload;
-  private readonly palette: PierreTerminalPalette;
-  private readonly maxVisibleLines: number;
+  private payload: DiffViewerPayload;
+  private palette: PierreTerminalPalette;
+  private maxVisibleLines: number;
+  private invalidateView: (() => void) | undefined;
+  private refreshPromise: Promise<void> | undefined;
+  private refreshKey: string | undefined;
 
-  constructor(payload: DiffViewerPayload, theme: Theme, maxVisibleLines: number) {
+  constructor(payload: DiffViewerPayload, theme: Theme, maxVisibleLines: number, invalidateView?: () => void) {
     this.payload = payload;
     this.palette = getPierrePalette(theme);
     this.maxVisibleLines = maxVisibleLines;
+    this.invalidateView = invalidateView;
+    this.maybeRefreshHighlightedDiff();
+  }
+
+  update(payload: DiffViewerPayload, theme: Theme, maxVisibleLines: number, invalidateView?: () => void) {
+    const nextKey = refreshKeyFor(payload);
+    const currentKey = refreshKeyFor(this.payload);
+    const shouldKeepRefreshedPayload =
+      currentKey === nextKey && needsHighlightRefresh(payload) && !needsHighlightRefresh(this.payload);
+    this.payload = shouldKeepRefreshedPayload ? this.payload : payload;
+    this.palette = getPierrePalette(theme);
+    this.maxVisibleLines = maxVisibleLines;
+    this.invalidateView = invalidateView;
+    this.maybeRefreshHighlightedDiff();
   }
 
   render(width: number): string[] {
@@ -97,6 +115,37 @@ export class InlineDiffComponent implements Component {
   }
 
   invalidate() {}
+
+  private maybeRefreshHighlightedDiff() {
+    if (!needsHighlightRefresh(this.payload)) {
+      this.refreshPromise = undefined;
+      this.refreshKey = undefined;
+      return;
+    }
+
+    const nextKey = refreshKeyFor(this.payload);
+    if (this.refreshPromise && this.refreshKey === nextKey) {
+      return;
+    }
+
+    this.refreshKey = nextKey;
+    this.refreshPromise = loadHighlightedDiff(this.payload.metadata)
+      .then((highlighted) => {
+        this.payload = {
+          ...this.payload,
+          highlighted,
+        };
+        this.invalidateView?.();
+      })
+      .catch(() => {
+        // Keep flat diff rendering when lazy re-highlighting fails.
+      })
+      .finally(() => {
+        if (this.refreshKey === nextKey) {
+          this.refreshPromise = undefined;
+        }
+      });
+  }
 
   private renderRow(row: DiffRow, width: number): string[] {
     if (row.kind !== "line") {
@@ -201,4 +250,22 @@ function lineNumberWidthFor(metadata: DiffViewerPayload["metadata"]) {
 
 function getPierreAppearanceFromPalette(palette: PierreTerminalPalette) {
   return palette.appearance;
+}
+
+function needsHighlightRefresh(payload: DiffViewerPayload) {
+  const lineCount = payload.metadata.deletionLines.length + payload.metadata.additionLines.length;
+  return lineCount > 0 && !hasHighlightedLines(payload.highlighted);
+}
+
+function hasHighlightedLines(highlighted: HighlightedDiffSet) {
+  return (
+    highlighted.dark.deletionLines.length > 0 ||
+    highlighted.dark.additionLines.length > 0 ||
+    highlighted.light.deletionLines.length > 0 ||
+    highlighted.light.additionLines.length > 0
+  );
+}
+
+function refreshKeyFor(payload: DiffViewerPayload) {
+  return `${payload.snapshot.path}\u0000${payload.snapshot.oldContent}\u0000${payload.snapshot.newContent}\u0000${payload.metadata.lang ?? ""}`;
 }

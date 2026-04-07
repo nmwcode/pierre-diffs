@@ -17,19 +17,19 @@ This package replaces Pi's default `edit` and `write` result rendering with a Pi
 ### npm
 
 ```bash
-pi install npm:@tanvesh01/pierre-diffs@0.2.0
+pi install npm:@tanvesh01/pierre-diffs@0.2.1
 ```
 
 ### git
 
 ```bash
-pi install git:github.com/tanvesh01/pierre-diffs@v0.2.0
+pi install git:github.com/tanvesh01/pierre-diffs@v0.2.1
 ```
 
 ### local development
 
 ```bash
-pi -e ./extensions/diff-viewer/index.ts
+pi --no-extensions -e ./extensions/diff-viewer/index.ts
 ```
 
 ## Behavior
@@ -41,7 +41,7 @@ After install, Pi will render `edit` and `write` results with:
 - syntax-aware highlighted diff lines when available
 - compact inline context/add/remove rows inside the chat stream
 
-Older sessions that were created before the full Pierre payload existed continue to render with Pi's original stored tool result UI.
+Older sessions created before the full Pierre payload existed continue to render with Pi's original stored tool result UI. Older Pierre-backed sessions can lazily recompute syntax highlighting when they are reopened.
 
 ## Scope
 

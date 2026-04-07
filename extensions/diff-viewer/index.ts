@@ -3,13 +3,13 @@
  * Replaces inline diff rendering for edit and write tools with Pierre-owned inline blocks.
  */
 
-import type { AgentToolResult, ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import type { AgentToolResult, ExtensionAPI, Theme } from "@mariozechner/pi-coding-agent";
 import { ToolExecutionComponent, createEditToolDefinition, createWriteToolDefinition } from "@mariozechner/pi-coding-agent";
 import { InlineDiffComponent, PierreCallComponent, PierreStatusComponent } from "./components/DiffViewer.js";
 import { createEditSnapshots, createWriteSnapshot } from "./lib/content-snapshot.js";
 import { loadHighlightedDiff } from "./lib/pierreHighlight.js";
-import { buildDiffMetadata } from "./lib/pierreParser.js";
-import type { DiffViewerDetails, DiffViewerPayload } from "./types.js";
+import { buildDiffMetadata, normalizeDiffMetadataLanguage } from "./lib/pierreParser.js";
+import type { DiffViewerDetails, DiffViewerPayload, HighlightedDiffSet } from "./types.js";
 
 export default function (pi: ExtensionAPI) {
   installPierreToolWrapperPatch();
@@ -58,9 +58,9 @@ export default function (pi: ExtensionAPI) {
         return new PierreStatusComponent(theme, error, "error");
       }
 
-      const payload = getDiffViewerPayload(result);
-      if (hasFullPierrePayload(payload)) {
-        return new InlineDiffComponent(payload, theme, maxVisibleLines(options.expanded));
+      const payload = getRenderableDiffViewerPayload(result);
+      if (payload) {
+        return renderInlineDiff(payload, theme, maxVisibleLines(options.expanded), context);
       }
 
       if (originalEdit.renderResult) {
@@ -100,7 +100,7 @@ export default function (pi: ExtensionAPI) {
       return new PierreCallComponent("write", args.path, theme);
     },
 
-    renderResult(result, options, theme) {
+    renderResult(result, options, theme, context) {
       if (options.isPartial) {
         return new PierreStatusComponent(theme, "Writing...", "pending");
       }
@@ -110,13 +110,13 @@ export default function (pi: ExtensionAPI) {
         return new PierreStatusComponent(theme, error, "error");
       }
 
-      const payload = getDiffViewerPayload(result);
-      if (hasFullPierrePayload(payload)) {
-        return new InlineDiffComponent(payload, theme, maxVisibleLines(options.expanded));
+      const payload = getRenderableDiffViewerPayload(result);
+      if (payload) {
+        return renderInlineDiff(payload, theme, maxVisibleLines(options.expanded), context);
       }
 
       if (originalWrite.renderResult) {
-        return originalWrite.renderResult(result as AgentToolResult<any>, options, theme, undefined as any);
+        return originalWrite.renderResult(result as AgentToolResult<any>, options, theme, context);
       }
 
       return new PierreStatusComponent(theme, "Written", "success");
@@ -145,22 +145,75 @@ function getDiffViewerPayload<T>(result: AgentToolResult<T>) {
   return details?.diffViewer;
 }
 
-function hasFullPierrePayload(payload: unknown): payload is DiffViewerPayload {
+function renderInlineDiff(
+  payload: DiffViewerPayload,
+  theme: Theme,
+  maxLines: number,
+  context: { lastComponent: unknown; invalidate: () => void },
+) {
+  const component =
+    context.lastComponent instanceof InlineDiffComponent
+      ? context.lastComponent
+      : new InlineDiffComponent(payload, theme, maxLines, context.invalidate);
+
+  component.update(payload, theme, maxLines, context.invalidate);
+  return component;
+}
+
+function getRenderableDiffViewerPayload<T>(result: AgentToolResult<T>) {
+  return normalizeDiffViewerPayload(getDiffViewerPayload(result));
+}
+
+function normalizeDiffViewerPayload(payload: unknown): DiffViewerPayload | undefined {
   if (!payload || typeof payload !== "object") {
-    return false;
+    return undefined;
   }
 
   const candidate = payload as Partial<DiffViewerPayload> & {
     highlighted?: Record<string, unknown>;
   };
 
-  return Boolean(
-    candidate.snapshot &&
-      candidate.metadata &&
-      candidate.highlighted &&
-      candidate.highlighted.dark &&
-      candidate.highlighted.light,
-  );
+  if (!candidate.snapshot || !candidate.metadata) {
+    return undefined;
+  }
+
+  const metadata = normalizeDiffMetadataLanguage(candidate.metadata, candidate.snapshot.path);
+  return {
+    snapshot: candidate.snapshot,
+    metadata,
+    highlighted: normalizeHighlightedDiffSet(candidate.highlighted),
+  };
+}
+
+function normalizeHighlightedDiffSet(highlighted: unknown): HighlightedDiffSet {
+  if (!highlighted || typeof highlighted !== "object") {
+    return emptyHighlightedDiffSet();
+  }
+
+  const candidate = highlighted as Partial<HighlightedDiffSet>;
+  return {
+    dark: normalizeHighlightedDiffCode(candidate.dark),
+    light: normalizeHighlightedDiffCode(candidate.light),
+  };
+}
+
+function normalizeHighlightedDiffCode(code: unknown): HighlightedDiffSet["dark"] {
+  if (!code || typeof code !== "object") {
+    return { deletionLines: [], additionLines: [] };
+  }
+
+  const candidate = code as Partial<HighlightedDiffSet["dark"]>;
+  return {
+    deletionLines: Array.isArray(candidate.deletionLines) ? candidate.deletionLines : [],
+    additionLines: Array.isArray(candidate.additionLines) ? candidate.additionLines : [],
+  };
+}
+
+function emptyHighlightedDiffSet(): HighlightedDiffSet {
+  return {
+    dark: { deletionLines: [], additionLines: [] },
+    light: { deletionLines: [], additionLines: [] },
+  };
 }
 
 function resultLooksLikeError<T>(result: AgentToolResult<T>) {

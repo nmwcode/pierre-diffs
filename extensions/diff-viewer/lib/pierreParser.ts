@@ -1,4 +1,10 @@
-import { parseDiffFromFile, type FileContents, type FileDiffMetadata } from "@pierre/diffs";
+import {
+  getFiletypeFromFileName,
+  parseDiffFromFile,
+  setLanguageOverride,
+  type FileContents,
+  type FileDiffMetadata,
+} from "@pierre/diffs";
 import { cleanDiffLine, flattenHighlightedLine } from "./pierreHighlight.js";
 import type { DiffRow, DiffSnapshot, HighlightedDiffCode } from "../types.js";
 import type { PierreTerminalPalette } from "./pierreTheme.js";
@@ -13,7 +19,12 @@ export function buildDiffMetadata(snapshot: DiffSnapshot): FileDiffMetadata {
     contents: snapshot.newContent,
   };
 
-  return parseDiffFromFile(oldFile, newFile, undefined, true);
+  return normalizeDiffMetadataLanguage(parseDiffFromFile(oldFile, newFile, undefined, true), snapshot.path);
+}
+
+export function normalizeDiffMetadataLanguage(metadata: FileDiffMetadata, path: string): FileDiffMetadata {
+  const language = metadata.lang ?? getFiletypeFromFileName(path);
+  return language ? setLanguageOverride(metadata, language) : metadata;
 }
 
 export function buildDiffRows(

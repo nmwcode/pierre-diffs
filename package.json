@@ -1,6 +1,6 @@
 {
   "name": "@tanvesh01/pierre-diffs",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Pierre-themed inline diff renderer for Pi edit and write tool results.",
   "author": "tanvesh01",
   "license": "MIT",
