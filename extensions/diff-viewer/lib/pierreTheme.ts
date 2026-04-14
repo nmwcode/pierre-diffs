@@ -1,7 +1,7 @@
-import pierreDarkTheme from "@pierre/theme/pierre-dark";
-import pierreLightTheme from "@pierre/theme/pierre-light";
 import type { Theme } from "@mariozechner/pi-coding-agent";
 import type { PierreAppearance } from "../types.js";
+
+type PaletteInput = { colors?: Record<string, string>; fg?: string; bg?: string };
 
 export interface PierreTerminalPalette {
   appearance: PierreAppearance;
@@ -26,9 +26,47 @@ export interface PierreTerminalPalette {
   errorBg: string;
 }
 
+const GRUVBOX_DARK: PaletteInput = {
+  bg: "#1d2021",
+  fg: "#ebdbb2",
+  colors: {
+    "sideBar.background": "#1d2021",
+    "sideBar.foreground": "#a89984",
+    "textLink.foreground": "#d3869b",
+    "gitDecoration.modifiedResourceForeground": "#fe8019",
+    "terminal.foreground": "#a89984",
+    "terminal.ansiGreen": "#b8bb26",
+    "terminal.ansiRed": "#fb4934",
+    "gitDecoration.addedResourceForeground": "#b8bb26",
+    "gitDecoration.deletedResourceForeground": "#fb4934",
+    "diffEditor.insertedTextBackground": "#b8bb261a",
+    "diffEditor.deletedTextBackground": "#fb49341a",
+    "editorLineNumber.foreground": "#665c54",
+  },
+};
+
+const GRUVBOX_LIGHT: PaletteInput = {
+  bg: "#fbf1c7",
+  fg: "#3c3836",
+  colors: {
+    "sideBar.background": "#fbf1c7",
+    "sideBar.foreground": "#504945",
+    "textLink.foreground": "#8f3f71",
+    "gitDecoration.modifiedResourceForeground": "#af3a03",
+    "terminal.foreground": "#504945",
+    "terminal.ansiGreen": "#79740e",
+    "terminal.ansiRed": "#9d0006",
+    "gitDecoration.addedResourceForeground": "#79740e",
+    "gitDecoration.deletedResourceForeground": "#9d0006",
+    "diffEditor.insertedTextBackground": "#79740e1a",
+    "diffEditor.deletedTextBackground": "#9d00061a",
+    "editorLineNumber.foreground": "#928374",
+  },
+};
+
 const PALETTES: Record<PierreAppearance, PierreTerminalPalette> = {
-  dark: buildPalette("dark", pierreDarkTheme),
-  light: buildPalette("light", pierreLightTheme),
+  dark: buildPalette("dark", GRUVBOX_DARK),
+  light: buildPalette("light", GRUVBOX_LIGHT),
 };
 
 export function getPierreAppearance(theme: Theme): PierreAppearance {
